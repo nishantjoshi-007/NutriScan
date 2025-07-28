@@ -10,20 +10,42 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F2FFF5"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nishantjoshi.nutriscan",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan food items for nutrition analysis.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to save scanned food images.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#4CAF50"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NutriScan to access your camera to scan food items."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f5805458-5daa-40af-9d06-f22f829f4ed3"
+      }
     }
   }
 }
