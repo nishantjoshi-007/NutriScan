@@ -30,23 +30,22 @@ npm install
 
 ### 3. Configure API Key
 
-Edit `src/services/geminiService.ts` and replace `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
+Create `.env` and add this with your actual API key:
 
-```typescript
-const GEMINI_API_KEY = "your_actual_api_key_here";
+```bash
+EXPO_PUBLIC_GEMINI_API = "your_actual_api_key_here";
 ```
 
 ### 4. Run the App
 
 ```bash
-# Start the development server
-npm start
+# Install all dependcies
+npm install
 
-# Run on iOS simulator
-npm run ios
+# Install Expo go app on phone
 
-# Run on Android emulator
-npm run android
+# Start the server
+npx expo start
 ```
 
 ## App Flow
