@@ -17,6 +17,8 @@ import CameraScreen from "./src/screens/CameraScreen";
 import WeightInputScreen from "./src/screens/WeightInputScreen";
 import ResultsScreen from "./src/screens/ResultsScreen";
 import TextSearchScreen from "./src/screens/TextSearchScreen";
+import RecipeSearchScreen from "./src/screens/RecipeSearchScreen";
+import RecipeDetailsScreen from "./src/screens/RecipeDetailsScreen";
 
 // Types for navigation
 export type RootStackParamList = {
@@ -24,6 +26,8 @@ export type RootStackParamList = {
   Camera: undefined;
   WeightInput: { imageUri: string };
   TextSearch: undefined;
+  RecipeSearch: undefined;
+  RecipeDetails: { recipeName: string; servings: number };
   Results: {
     imageUri: string;
     weight: number;
@@ -124,6 +128,16 @@ export default function App() {
               name="TextSearch"
               component={TextSearchScreen}
               options={{ title: "Text Search", headerBackTitle: "" }}
+            />
+            <Stack.Screen
+              name="RecipeSearch"
+              component={RecipeSearchScreen}
+              options={{ title: "Recipe Search", headerBackTitle: "" }}
+            />
+            <Stack.Screen
+              name="RecipeDetails"
+              component={RecipeDetailsScreen}
+              options={{ title: "Recipe Details", headerBackTitle: "" }}
             />
             <Stack.Screen
               name="Results"

@@ -80,10 +80,8 @@ export default function TextSearchScreen({ navigation }: Props) {
   const quickFoodSuggestions = [
     "Apple, medium",
     "Banana, large",
-    "Chicken breast, grilled",
     "Rice, cooked",
     "Broccoli, steamed",
-    "Salmon fillet",
     "Greek yogurt",
     "Whole wheat bread",
     "Avocado, half",
@@ -101,20 +99,30 @@ export default function TextSearchScreen({ navigation }: Props) {
 
   return (
     <Layout style={styles.container} level="1">
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={true}
+      >
         <Layout style={styles.content} level="1">
-          {/* Header */}
-          <Card style={styles.headerCard}>
-            <Layout style={styles.headerContent} level="1">
-              <Text style={styles.headerIcon}>🔍</Text>
-              <Text style={styles.title} category="h4">
-                {t("textSearch.title")}
-              </Text>
-              <Text style={styles.subtitle} category="s1" appearance="hint">
-                {t("textSearch.subtitle")}
-              </Text>
-            </Layout>
-          </Card>
+          {/* Help Text */}
+          <Layout style={styles.helpSection} level="1">
+            <Text style={styles.helpTitle} category="s1" status="basic">
+              {t("textSearch.tipsTitle")}
+            </Text>
+            <Text style={styles.helpText} category="c1" appearance="hint">
+              {t("textSearch.tip1")}
+            </Text>
+            <Text style={styles.helpText} category="c1" appearance="hint">
+              {t("textSearch.tip2")}
+            </Text>
+            <Text style={styles.helpText} category="c1" appearance="hint">
+              {t("textSearch.tip3")}
+            </Text>
+            <Text style={styles.helpText} category="c1" appearance="hint">
+              {t("textSearch.tip4")}
+            </Text>
+          </Layout>
 
           {/* Food Description Input */}
           <Layout style={styles.inputSection} level="1">
@@ -203,25 +211,6 @@ export default function TextSearchScreen({ navigation }: Props) {
           >
             {isProcessing ? t("textSearch.analyzing") : t("textSearch.analyzeNutrition")}
           </Button>
-
-          {/* Help Text */}
-          <Layout style={styles.helpSection} level="1">
-            <Text style={styles.helpTitle} category="s1" status="basic">
-              {t("textSearch.tipsTitle")}
-            </Text>
-            <Text style={styles.helpText} category="c1" appearance="hint">
-              {t("textSearch.tip1")}
-            </Text>
-            <Text style={styles.helpText} category="c1" appearance="hint">
-              {t("textSearch.tip2")}
-            </Text>
-            <Text style={styles.helpText} category="c1" appearance="hint">
-              {t("textSearch.tip3")}
-            </Text>
-            <Text style={styles.helpText} category="c1" appearance="hint">
-              {t("textSearch.tip4")}
-            </Text>
-          </Layout>
         </Layout>
       </ScrollView>
     </Layout>
@@ -309,6 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(76, 175, 80, 0.2)",
+    marginBottom: 24,
   },
   helpTitle: {
     marginBottom: 8,

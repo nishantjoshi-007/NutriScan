@@ -7,6 +7,8 @@ export interface SearchHistoryItem {
   calories: number;
   confidence?: number;
   searchText?: string; // Optional text search query
+  searchType?: "food_scan" | "text_search" | "recipe"; // Type of search performed
+  recipeServings?: number; // For recipe searches
   // Store complete nutrition data
   nutritionData: {
     macros: {
@@ -41,6 +43,8 @@ export interface SearchHistoryItem {
     };
     renalDiet: {
       suitableForKidneyDisease: boolean;
+      overallSafetyFlag: "safe" | "caution" | "avoid";
+      primaryConcerns: string[];
       potassiumLevel: "low" | "moderate" | "high";
       phosphorusLevel: "low" | "moderate" | "high";
       sodiumLevel: "low" | "moderate" | "high";
@@ -48,6 +52,24 @@ export interface SearchHistoryItem {
       recommendation: string;
       warnings: string[];
       modifications: string;
+      antioxidants?: {
+        hasAntioxidants: boolean;
+        types: string[];
+        kidneyBenefits: string[];
+      };
+      recommendedPortionGrams?: number;
+      additionalMinerals?: {
+        oxalates: number; // mg
+        purines: number; // mg
+        chloride: number; // mg
+        sulfur: number; // mg
+      };
+      kidneySpecificInfo?: {
+        isDialysisFriendly: boolean;
+        ckdStageRecommendations: string;
+        fluidContent: number; // percentage
+        acidLoad: "low" | "moderate" | "high";
+      };
     };
   };
   // Keep simplified summary for backward compatibility and quick display

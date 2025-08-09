@@ -5,7 +5,10 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GEMINI_API": "replace_with_your_api_key"
+      }
     },
     "preview": {
       "distribution": "internal"
@@ -13,11 +16,17 @@
     "production": {
       "android": {
         "distribution": "internal",
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_GEMINI_API": "replace_with_your_api_key"
+        }
       },
       "ios": {
         "distribution": "internal",
-        "simulator": false
+        "simulator": false,
+        "env": {
+          "EXPO_PUBLIC_GEMINI_API": "replace_with_your_api_key"
+        }
       }
     }
   },

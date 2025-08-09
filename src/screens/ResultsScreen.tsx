@@ -104,7 +104,13 @@ export default function ResultsScreen({ navigation, route }: Props) {
         macros: savedNutritionData.macros,
         vitamins: savedNutritionData.vitamins,
         minerals: savedNutritionData.minerals,
-        renalDiet: savedNutritionData.renalDiet,
+        renalDiet: {
+          ...savedNutritionData.renalDiet,
+          overallSafetyFlag:
+            (savedNutritionData.renalDiet as any).overallSafetyFlag ||
+            (savedNutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution"),
+          primaryConcerns: (savedNutritionData.renalDiet as any).primaryConcerns || [],
+        },
       };
       setNutritionData(historyData);
       setIsLoading(false);
@@ -141,6 +147,8 @@ export default function ResultsScreen({ navigation, route }: Props) {
         },
         renalDiet: {
           suitableForKidneyDisease: true,
+          overallSafetyFlag: "safe",
+          primaryConcerns: [],
           potassiumLevel: "low",
           phosphorusLevel: "low",
           sodiumLevel: "low",
@@ -541,7 +549,16 @@ export default function ResultsScreen({ navigation, route }: Props) {
         <View
           style={[
             styles.renalCard,
-            { backgroundColor: nutritionData.renalDiet.suitableForKidneyDisease ? "#E8F5E8" : "#FFEBEE" },
+            {
+              backgroundColor:
+                (nutritionData.renalDiet.overallSafetyFlag ||
+                  (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "safe"
+                  ? "#E8F5E8"
+                  : (nutritionData.renalDiet.overallSafetyFlag ||
+                      (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "caution"
+                  ? "#FFF3E0"
+                  : "#FFEBEE",
+            },
           ]}
         >
           <View style={styles.cardHeader}>
@@ -553,13 +570,39 @@ export default function ResultsScreen({ navigation, route }: Props) {
             <Text
               style={[
                 styles.renalStatus,
-                { color: nutritionData.renalDiet.suitableForKidneyDisease ? "#2E7D32" : "#C62828" },
+                {
+                  color:
+                    (nutritionData.renalDiet.overallSafetyFlag ||
+                      (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "safe"
+                      ? "#2E7D32"
+                      : (nutritionData.renalDiet.overallSafetyFlag ||
+                          (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "caution"
+                      ? "#F57C00"
+                      : "#C62828",
+                },
               ]}
             >
-              {nutritionData.renalDiet.suitableForKidneyDisease
-                ? t("results.generallySafe")
-                : t("results.useCaution")}
+              {(nutritionData.renalDiet.overallSafetyFlag ||
+                (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "safe"
+                ? "✅ " + t("results.safe")
+                : (nutritionData.renalDiet.overallSafetyFlag ||
+                    (nutritionData.renalDiet.suitableForKidneyDisease ? "safe" : "caution")) === "caution"
+                ? "⚠️ " + t("results.useCaution")
+                : "🚫 " + t("results.avoid")}
             </Text>
+
+            {/* Primary Concerns */}
+            {nutritionData.renalDiet.primaryConcerns && nutritionData.renalDiet.primaryConcerns.length > 0 && (
+              <View style={styles.primaryConcernsContainer}>
+                <Text style={styles.primaryConcernsTitle}>{t("results.primaryConcerns")}:</Text>
+                {nutritionData.renalDiet.primaryConcerns.map((concern, index) => (
+                  <View key={index} style={styles.concernItem}>
+                    <Text style={styles.concernBullet}>•</Text>
+                    <Text style={styles.concernText}>{concern}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           <View style={styles.levelsGrid}>
@@ -640,29 +683,165 @@ export default function ResultsScreen({ navigation, route }: Props) {
               </Text>
             </View>
           </View>
-
-          <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>{t("results.recommendation")}</Text>
-            <Text style={styles.infoText}>{nutritionData.renalDiet.recommendation}</Text>
-          </View>
-
-          {nutritionData.renalDiet.warnings.length > 0 && (
-            <View style={styles.warningsSection}>
-              <Text style={styles.warningsTitle}>{t("results.warnings")}</Text>
-              {nutritionData.renalDiet.warnings.map((warning, index) => (
-                <View key={index} style={styles.warningItem}>
-                  <Text style={styles.warningBullet}>•</Text>
-                  <Text style={styles.warningText}>{warning}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.infoSection}>
-            <Text style={styles.infoTitle}>{t("results.modifications")}</Text>
-            <Text style={styles.infoText}>{nutritionData.renalDiet.modifications}</Text>
-          </View>
         </View>
+
+        <View style={styles.infoSection}>
+          <Text style={styles.infoTitle}>{t("results.recommendation")}</Text>
+          <Text style={styles.infoText}>{nutritionData.renalDiet.recommendation}</Text>
+        </View>
+
+        {nutritionData.renalDiet.warnings.length > 0 && (
+          <View style={styles.warningsSection}>
+            <Text style={styles.warningsTitle}>{t("results.warnings")}</Text>
+            {nutritionData.renalDiet.warnings.map((warning, index) => (
+              <View key={index} style={styles.warningItem}>
+                <Text style={styles.warningBullet}>•</Text>
+                <Text style={styles.warningText}>{warning}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.infoSection}>
+          <Text style={styles.infoTitle}>{t("results.modifications")}</Text>
+          <Text style={styles.infoText}>{nutritionData.renalDiet.modifications}</Text>
+        </View>
+
+        {/* Recommended Portion Section */}
+        {nutritionData.renalDiet.recommendedPortionGrams && (
+          <View style={styles.portionSection}>
+            <Text style={styles.portionTitle}>⚖️ {t("results.recommendedPortion")}</Text>
+            <View style={styles.portionCard}>
+              <Text style={styles.portionAmount}>{nutritionData.renalDiet.recommendedPortionGrams}g</Text>
+              <Text style={styles.portionLabel}>{t("results.maxDailyAmount")}</Text>
+            </View>
+            <Text style={styles.portionNote}>{t("results.portionNote")}</Text>
+          </View>
+        )}
+
+        {/* Additional Minerals Section */}
+        {nutritionData.renalDiet.additionalMinerals && (
+          <View style={styles.additionalMineralsSection}>
+            <Text style={styles.infoTitle}>🧪 {t("results.additionalMinerals")}</Text>
+            <View style={styles.mineralGrid}>
+              <View style={styles.mineralCard}>
+                <Text style={styles.mineralEmoji}>🪨</Text>
+                <Text style={styles.mineralLabel}>{t("results.oxalates")}</Text>
+                <Text style={styles.mineralValue}>{nutritionData.renalDiet.additionalMinerals.oxalates} mg</Text>
+              </View>
+              <View style={styles.mineralCard}>
+                <Text style={styles.mineralEmoji}>🔬</Text>
+                <Text style={styles.mineralLabel}>{t("results.purines")}</Text>
+                <Text style={styles.mineralValue}>{nutritionData.renalDiet.additionalMinerals.purines} mg</Text>
+              </View>
+              <View style={styles.mineralCard}>
+                <Text style={styles.mineralEmoji}>🧂</Text>
+                <Text style={styles.mineralLabel}>{t("results.chloride")}</Text>
+                <Text style={styles.mineralValue}>{nutritionData.renalDiet.additionalMinerals.chloride} mg</Text>
+              </View>
+              <View style={styles.mineralCard}>
+                <Text style={styles.mineralEmoji}>💨</Text>
+                <Text style={styles.mineralLabel}>{t("results.sulfur")}</Text>
+                <Text style={styles.mineralValue}>{nutritionData.renalDiet.additionalMinerals.sulfur} mg</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Kidney-Specific Information */}
+        {nutritionData.renalDiet.antioxidants?.hasAntioxidants || nutritionData.renalDiet.kidneySpecificInfo ? (
+          <View style={styles.kidneyInfoSection}>
+            <Text style={styles.infoTitle}>💙 {t("results.kidneySpecificInfo")}</Text>
+            {nutritionData.renalDiet.kidneySpecificInfo && (
+              <View>
+                <View style={styles.kidneyInfoGrid}>
+                  <View style={styles.kidneyInfoCard}>
+                    <Text style={styles.kidneyInfoEmoji}>🩺</Text>
+                    <Text style={styles.kidneyInfoLabel}>{t("results.dialysisFriendly")}</Text>
+                    <Text
+                      style={[
+                        styles.kidneyInfoValue,
+                        {
+                          color: nutritionData.renalDiet.kidneySpecificInfo.isDialysisFriendly
+                            ? "#2E7D32"
+                            : "#C62828",
+                        },
+                      ]}
+                    >
+                      {nutritionData.renalDiet.kidneySpecificInfo.isDialysisFriendly
+                        ? t("common.yes")
+                        : t("common.no")}
+                    </Text>
+                  </View>
+
+                  <View style={styles.kidneyInfoCard}>
+                    <Text style={styles.kidneyInfoEmoji}>💧</Text>
+                    <Text style={styles.kidneyInfoLabel}>{t("results.fluidContent")}</Text>
+                    <Text style={styles.kidneyInfoValue}>
+                      {nutritionData.renalDiet.kidneySpecificInfo.fluidContent}%
+                    </Text>
+                  </View>
+
+                  <View style={styles.kidneyInfoCard}>
+                    <Text style={styles.kidneyInfoEmoji}>⚡</Text>
+                    <Text style={styles.kidneyInfoLabel}>{t("results.acidLoad")}</Text>
+                    <Text
+                      style={[
+                        styles.kidneyInfoValue,
+                        {
+                          color:
+                            nutritionData.renalDiet.kidneySpecificInfo.acidLoad === "high"
+                              ? "#C62828"
+                              : nutritionData.renalDiet.kidneySpecificInfo.acidLoad === "moderate"
+                              ? "#F57C00"
+                              : "#2E7D32",
+                        },
+                      ]}
+                    >
+                      {t(`results.${nutritionData.renalDiet.kidneySpecificInfo.acidLoad}`)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.ckdRecommendations}>
+                  <Text style={styles.ckdTitle}>{t("results.ckdRecommendations")}</Text>
+                  <Text style={styles.ckdText}>
+                    {nutritionData.renalDiet.kidneySpecificInfo.ckdStageRecommendations}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {nutritionData.renalDiet.antioxidants?.hasAntioxidants && (
+              <View style={styles.kidneyBenefitsSection}>
+                <Text style={styles.infoTitle}>🛡️ {t("results.antioxidants")}</Text>
+                {nutritionData.renalDiet.antioxidants.types.length > 0 && (
+                  <View style={styles.antioxidantsContainer}>
+                    <Text style={styles.antioxidantsSubtitle}>{t("results.typesPresent")}:</Text>
+                    <View style={styles.antioxidantsList}>
+                      {nutritionData.renalDiet.antioxidants.types.map((type, index) => (
+                        <View key={index} style={styles.antioxidantTag}>
+                          <Text style={styles.antioxidantText}>{type}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {nutritionData.renalDiet.antioxidants.kidneyBenefits.length > 0 && (
+                  <View style={styles.benefitsContainer}>
+                    <Text style={styles.benefitsSubtitle}>{t("results.kidneyBenefits")}:</Text>
+                    {nutritionData.renalDiet.antioxidants.kidneyBenefits.map((benefit, index) => (
+                      <View key={index} style={styles.benefitItem}>
+                        <Text style={styles.benefitBullet}>•</Text>
+                        <Text style={styles.benefitText}>{benefit}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        ) : null}
 
         {/* Action Buttons */}
         <View style={styles.actionSection}>
@@ -1016,7 +1195,7 @@ const styles = StyleSheet.create({
   // Info Sections
   infoSection: {
     padding: 16,
-    margin: 16,
+    margin: 24,
     marginTop: 8,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     borderRadius: 16,
@@ -1036,7 +1215,7 @@ const styles = StyleSheet.create({
   // Warnings Section
   warningsSection: {
     padding: 16,
-    margin: 16,
+    margin: 24,
     marginTop: 8,
     backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 16,
@@ -1300,5 +1479,272 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     lineHeight: 20,
+  },
+
+  // Antioxidants Styles
+  antioxidantsContainer: {
+    marginTop: 8,
+  },
+  antioxidantsSubtitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  antioxidantsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 12,
+  },
+  antioxidantTag: {
+    backgroundColor: "#E8F5E8",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  antioxidantText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "600",
+  },
+  benefitsContainer: {
+    marginTop: 8,
+  },
+  benefitsSubtitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  benefitItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 4,
+  },
+  benefitBullet: {
+    fontSize: 14,
+    color: "#4CAF50",
+    marginRight: 8,
+    marginTop: 2,
+  },
+  benefitText: {
+    fontSize: 14,
+    color: "#666",
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  // Portion Styles
+  portionSection: {
+    backgroundColor: "#FFF3E0",
+    margin: 20,
+    marginTop: 10,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: "#FF9800",
+  },
+  portionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#E65100",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  portionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  portionAmount: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#E65100",
+    marginBottom: 4,
+  },
+  portionLabel: {
+    fontSize: 14,
+    color: "#666",
+    textTransform: "uppercase",
+    fontWeight: "600",
+  },
+  portionNote: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+
+  // Additional Minerals Styles
+  additionalMineralsSection: {
+    margin: 20,
+    marginTop: 10,
+    backgroundColor: "#F3E5F5",
+    borderRadius: 16,
+    padding: 16,
+  },
+  mineralGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  mineralCard: {
+    width: "48%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  mineralEmoji: {
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  mineralLabel: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  mineralValue: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
+
+  // Kidney-Specific Info Styles
+  kidneyInfoSection: {
+    margin: 20,
+    marginTop: 10,
+    backgroundColor: "#E3F2FD",
+    borderRadius: 16,
+    padding: 16,
+  },
+  kidneyInfoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 16,
+  },
+  kidneyInfoCard: {
+    width: "48%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  kidneyInfoEmoji: {
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  kidneyInfoLabel: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  kidneyInfoValue: {
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  ckdRecommendations: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  ckdTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1976D2",
+    marginBottom: 8,
+  },
+  ckdText: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 20,
+  },
+
+  // Kidney Benefits Section
+  kidneyBenefitsSection: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    marginTop: 16,
+  },
+
+  // Primary Concerns Styles
+  primaryConcernsContainer: {
+    marginTop: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  primaryConcernsTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#D32F2F",
+    marginBottom: 8,
+    alignSelf: "flex-start",
+  },
+  concernItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+    width: "100%",
+    paddingRight: 8,
+  },
+  concernBullet: {
+    fontSize: 14,
+    color: "#D32F2F",
+    marginRight: 8,
+    marginTop: 1,
+    width: 12,
+  },
+  concernText: {
+    fontSize: 13,
+    color: "#D32F2F",
+    flex: 1,
+    lineHeight: 18,
+    fontWeight: "500",
+    textAlign: "left",
   },
 });

@@ -185,6 +185,16 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           >
             {t("home.textSearch")}
           </Button>
+
+          <Button
+            style={[styles.actionButton, styles.recipeButton]}
+            onPress={() => navigation.navigate("RecipeSearch")}
+            accessoryLeft={() => <Text style={styles.recipeButtonIcon}>🍽️</Text>}
+            appearance="outline"
+            status="primary"
+          >
+            {t("home.recipeSearch")}
+          </Button>
         </View>
 
         <View style={styles.historySection}>
@@ -311,6 +321,13 @@ const styles = StyleSheet.create({
   secondaryButtonIcon: {
     fontSize: 18,
     color: "#4CAF50",
+  },
+  recipeButton: {
+    borderColor: "#2196F3",
+  },
+  recipeButtonIcon: {
+    fontSize: 18,
+    color: "#2196F3",
   },
   historySection: {
     flex: 1,

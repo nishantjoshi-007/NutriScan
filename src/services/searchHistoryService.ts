@@ -82,6 +82,8 @@ class SearchHistoryService {
             },
             renalDiet: {
               suitableForKidneyDisease: true,
+              overallSafetyFlag: "caution",
+              primaryConcerns: [],
               potassiumLevel: "low",
               phosphorusLevel: "low",
               sodiumLevel: "low",
