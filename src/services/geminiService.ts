@@ -1,29 +1,140 @@
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
-import { NutritionData, GeminiResponse, RecipeSearchResult, RecipeDetails } from "../types/nutrition";
+import { NutritionData, RecipeSearchResult, RecipeDetails } from "../types/nutrition";
+import { WeightEstimate, DailyNutritionContext, GeminiResponse } from "../types/services";
 import { config } from "../config";
 import i18n from "../i18n/i18n";
+import foodLogService from "./foodLogService";
+
+/**
+ * Enhanced Gemini Service with Personalized Portion Recommendations
+ *
+ * This service now provides personalized portion recommendations based on:
+ * - User's current daily intake (from food log)
+ * - Remaining daily allowance for key nutrients (K, P, Na, calories)
+ * - CKD-specific daily limits
+ *
+ * Usage examples:
+ *
+ * // Basic usage (auto-calculates based on today's food log)
+ * const nutritionData = await GeminiService.analyzeFood(imageBase64, 150);
+ * console.log(nutritionData.renalDiet.recommendedPortionGrams); // Personalized portion
+ *
+ * // Customize daily limits for specific patient needs
+ * GeminiService.setDailyLimits({
+ *   potassium: 1500, // Lower limit for advanced CKD
+ *   sodium: 1500,    // Stricter sodium restriction
+ * });
+ *
+ * // All analysis methods now include personalized recommendations:
+ * - analyzeFood() - for camera-captured food
+ * - analyzeFoodFromText() - for manually entered food
+ * - searchRenalFriendlyRecipes() - for recipe searches
+ * - getRecipeDetails() - for detailed recipe analysis
+ */
 
 // Get API configuration from config file
 const GEMINI_API_KEY = config.gemini.apiKey;
 const GEMINI_API_URL = config.gemini.baseUrl;
 
-export interface WeightEstimate {
-  weight: number; // in grams
-  confidence: number; // 0-1
-  detectedFood: string;
-  reasoning: string;
-  volume?: number; // in cm³ (optional)
-}
-
 export class GeminiService {
   private static instance: GeminiService;
+
+  // Daily recommended limits for CKD patients (can be made configurable)
+  private readonly CKD_DAILY_LIMITS = {
+    calories: 2000, // kcal (can vary based on age, weight, activity)
+    potassium: 2000, // mg (2-3g typical for CKD stage 3-4)
+    phosphorus: 800, // mg (800-1000mg typical for CKD)
+    sodium: 2000, // mg (2g or less for CKD)
+  };
 
   public static getInstance(): GeminiService {
     if (!GeminiService.instance) {
       GeminiService.instance = new GeminiService();
     }
     return GeminiService.instance;
+  }
+
+  /**
+   * Get today's nutrition context for personalized recommendations
+   */
+  private async getTodayNutritionContext(): Promise<DailyNutritionContext> {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const todayEntries = await foodLogService.getFoodLogForDate(today);
+
+      const currentIntake = todayEntries.reduce(
+        (totals, entry) => ({
+          calories: totals.calories + (entry.calories || 0),
+          potassium: totals.potassium + entry.potassium,
+          phosphorus: totals.phosphorus + entry.phosphorus,
+          sodium: totals.sodium + entry.sodium,
+        }),
+        { calories: 0, potassium: 0, phosphorus: 0, sodium: 0 }
+      );
+
+      const remaining = {
+        calories: Math.max(0, this.CKD_DAILY_LIMITS.calories - currentIntake.calories),
+        potassium: Math.max(0, this.CKD_DAILY_LIMITS.potassium - currentIntake.potassium),
+        phosphorus: Math.max(0, this.CKD_DAILY_LIMITS.phosphorus - currentIntake.phosphorus),
+        sodium: Math.max(0, this.CKD_DAILY_LIMITS.sodium - currentIntake.sodium),
+      };
+
+      return {
+        currentIntake,
+        recommendedLimits: this.CKD_DAILY_LIMITS,
+        remaining,
+      };
+    } catch (error) {
+      console.error("Error getting nutrition context:", error);
+      // Return default context if unable to get food log data
+      return {
+        currentIntake: { calories: 0, potassium: 0, phosphorus: 0, sodium: 0 },
+        recommendedLimits: this.CKD_DAILY_LIMITS,
+        remaining: this.CKD_DAILY_LIMITS,
+      };
+    }
+  }
+
+  /**
+   * Generate personalized portion recommendation instructions
+   */
+  private async getPersonalizedPortionInstructions(): Promise<string> {
+    const nutritionContext = await this.getTodayNutritionContext();
+
+    return `
+PERSONALIZED PORTION RECOMMENDATION CONTEXT:
+Today's Current Intake:
+- Calories: ${nutritionContext.currentIntake.calories}/${nutritionContext.recommendedLimits.calories} kcal
+- Potassium: ${nutritionContext.currentIntake.potassium}/${nutritionContext.recommendedLimits.potassium} mg
+- Phosphorus: ${nutritionContext.currentIntake.phosphorus}/${nutritionContext.recommendedLimits.phosphorus} mg
+- Sodium: ${nutritionContext.currentIntake.sodium}/${nutritionContext.recommendedLimits.sodium} mg
+
+Remaining Daily Allowance:
+- Calories: ${nutritionContext.remaining.calories} kcal
+- Potassium: ${nutritionContext.remaining.potassium} mg
+- Phosphorus: ${nutritionContext.remaining.phosphorus} mg
+- Sodium: ${nutritionContext.remaining.sodium} mg
+
+IMPORTANT INSTRUCTIONS FOR recommendedPortionGrams:
+1. Calculate the optimal portion size based on the user's REMAINING daily allowance
+2. If the user has plenty of remaining allowance for a nutrient, you can suggest larger portions
+3. If the user is close to their daily limit for any nutrient, suggest smaller portions
+4. Always prioritize the MOST RESTRICTIVE nutrient (the one with least remaining allowance)
+5. Consider the nutritional density - if food is very high in a restricted nutrient, limit portion accordingly
+6. If user has very low remaining allowance (<10% of daily limit), suggest very small portions or recommend avoiding
+7. Factor in that this is not their only meal of the day - leave room for other meals
+8. Typical portion guidance:
+   - If >50% allowance remaining: Can suggest standard or slightly larger portions
+   - If 25-50% remaining: Suggest moderate portions 
+   - If 10-25% remaining: Suggest small portions
+   - If <10% remaining: Suggest very small portions or null (avoid)
+
+Example calculation logic:
+- If potassium remaining is 800mg and food has 200mg K per 100g, could suggest up to 400g
+- But if sodium remaining is only 300mg and food has 150mg Na per 100g, limit to 200g
+- Choose the smaller portion to respect the most restrictive nutrient
+`;
   }
 
   private getLanguageInstructions(): string {
@@ -57,11 +168,14 @@ export class GeminiService {
   async analyzeFood(imageBase64: string, weight: number): Promise<NutritionData> {
     try {
       const languageInstructions = this.getLanguageInstructions();
+      const portionInstructions = await this.getPersonalizedPortionInstructions();
 
       const prompt = `
         Analyze this food image and provide detailed nutrition information for ${weight} grams of this food.
         
         ${languageInstructions}
+        
+        ${portionInstructions}
         
         Return ONLY a JSON object with this exact structure (no additional text):
         {
@@ -113,7 +227,7 @@ export class GeminiService {
               "types": ["list of antioxidants present like lycopene, anthocyanins, etc"],
               "kidneyBenefits": ["specific benefits for kidney health"]
             },
-            "recommendedPortionGrams": number_or_null,
+            "recommendedPortionGrams": number_or_null_based_on_remaining_daily_allowance,
             "additionalMinerals": {
               "oxalates": number_in_mg,
               "purines": number_in_mg,
@@ -208,14 +322,17 @@ export class GeminiService {
     }
   }
 
-  async analyzeFoodFromText(foodDescription: string, weight: number): Promise<NutritionData> {
+  async analyzeFoodFromText(foodDescription: string, weight: number, unit: string = "g"): Promise<NutritionData> {
     try {
       const languageInstructions = this.getLanguageInstructions();
+      const portionInstructions = await this.getPersonalizedPortionInstructions();
 
       const prompt = `
-        Analyze the food "${foodDescription}" and provide detailed nutrition information for ${weight} grams of this food.
+        Analyze the food "${foodDescription}" and provide detailed nutrition information for ${weight} ${unit} of this food.
         
         ${languageInstructions}
+        
+        ${portionInstructions}
         
         Return ONLY a JSON object with this exact structure (no additional text):
         {
@@ -267,7 +384,7 @@ export class GeminiService {
               "types": ["list of antioxidants present like lycopene, anthocyanins, etc"],
               "kidneyBenefits": ["specific benefits for kidney health"]
             },
-            "recommendedPortionGrams": number_or_null,
+            "recommendedPortionGrams": number_or_null_based_on_remaining_daily_allowance,
             "additionalMinerals": {
               "oxalates": number_in_mg,
               "purines": number_in_mg,
@@ -298,7 +415,7 @@ export class GeminiService {
         4. Be conservative - if unsure, err on side of caution for kidney patients
         5. Consider cumulative effects and food processing methods
         
-        Be as accurate as possible based on the food description and the specified weight. Provide vitamin amounts in IU or mg as appropriate, minerals in mg, and comprehensive renal diet analysis with focus on:
+        Be as accurate as possible based on the food description and the specified weight/volume. For liquids, consider density and typical nutritional content per ml. Provide vitamin amounts in IU or mg as appropriate, minerals in mg, and comprehensive renal diet analysis with focus on:
         - Antioxidants beneficial for kidney health (lycopene, anthocyanins, quercetin, etc.)
         - Recommended portion sizes for kidney patients (if restrictions apply)
         - Oxalate content (important for kidney stone prevention)
@@ -464,16 +581,34 @@ Respond in this exact JSON format:
   }
 
   /**
+   * Update daily limits for CKD recommendations (optional customization)
+   */
+  public setDailyLimits(limits: Partial<typeof this.CKD_DAILY_LIMITS>): void {
+    Object.assign(this.CKD_DAILY_LIMITS, limits);
+    console.log("Updated daily limits:", this.CKD_DAILY_LIMITS);
+  }
+
+  /**
+   * Get current daily limits
+   */
+  public getDailyLimits() {
+    return { ...this.CKD_DAILY_LIMITS };
+  }
+
+  /**
    * Search for kidney-friendly recipes based on cuisine type or search query
    */
   async searchRenalFriendlyRecipes(searchQuery: string): Promise<RecipeSearchResult[]> {
     try {
       const languageInstructions = this.getLanguageInstructions();
+      const portionInstructions = await this.getPersonalizedPortionInstructions();
 
       const prompt = `
         Search for kidney-friendly recipes based on this query: "${searchQuery}"
         
         ${languageInstructions}
+        
+        ${portionInstructions}
         
         IMPORTANT: Only provide recipes that are SPECIFICALLY BENEFICIAL and SAFE for people with Chronic Kidney Disease (CKD). 
         
@@ -567,6 +702,7 @@ Respond in this exact JSON format:
   async getRecipeDetails(recipeName: string, servings: number = 4): Promise<RecipeDetails> {
     try {
       const languageInstructions = this.getLanguageInstructions();
+      const portionInstructions = await this.getPersonalizedPortionInstructions();
 
       const prompt = `
         Provide detailed recipe information and complete nutrition analysis for "${recipeName}" (${servings} servings).
@@ -575,6 +711,8 @@ Respond in this exact JSON format:
         Ensure all ingredients and modifications support kidney health and are safe for CKD patients.
         
         ${languageInstructions}
+        
+        ${portionInstructions}
         
         Return ONLY a JSON object with this exact structure (no additional text):
         {
@@ -649,7 +787,7 @@ Respond in this exact JSON format:
                 "types": ["list of antioxidants"],
                 "kidneyBenefits": ["kidney health benefits"]
               },
-              "recommendedPortionGrams": number_or_null,
+              "recommendedPortionGrams": number_or_null_based_on_remaining_daily_allowance,
               "additionalMinerals": {
                 "oxalates": number_in_mg,
                 "purines": number_in_mg,

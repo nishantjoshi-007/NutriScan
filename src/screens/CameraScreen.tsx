@@ -1,18 +1,11 @@
 import React, { useState, useRef } from "react";
 import { View, StyleSheet, Alert, Image, SafeAreaView, TouchableOpacity } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
-import { StackNavigationProp } from "@react-navigation/stack";
 import { Layout, Text, Button, Card, Spinner } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
+import { CameraScreenProps } from "../types/navigation";
 
-type CameraScreenNavigationProp = StackNavigationProp<RootStackParamList, "Camera">;
-
-interface Props {
-  navigation: CameraScreenNavigationProp;
-}
-
-export default function CameraScreen({ navigation }: Props) {
+export default function CameraScreen({ navigation }: CameraScreenProps) {
   const { t } = useTranslation();
   const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
@@ -62,6 +55,11 @@ export default function CameraScreen({ navigation }: Props) {
         }
       } catch (error) {
         console.error("Error taking picture:", error);
+        Alert.alert(
+          "Camera Error",
+          "Failed to take picture. Please try again.",
+          [{ text: "OK" }]
+        );
         Alert.alert(t("common.error"), t("camera.failedToTakePhoto"));
       }
     }

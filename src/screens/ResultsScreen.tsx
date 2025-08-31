@@ -10,44 +10,15 @@ import {
   Alert,
   Dimensions,
 } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RouteProp } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
 import { NutritionData } from "../types/nutrition";
+import { ResultsScreenProps } from "../types/navigation";
+import { NutritionItemProps, MacroCardProps, NutrientCardProps } from "../types/components";
 import GeminiService from "../services/geminiService";
 import searchHistoryService from "../services/searchHistoryService";
 import * as FileSystem from "expo-file-system";
 
 const { width: screenWidth } = Dimensions.get("window");
-
-type ResultsScreenNavigationProp = StackNavigationProp<RootStackParamList, "Results">;
-type ResultsScreenRouteProp = RouteProp<RootStackParamList, "Results">;
-
-interface Props {
-  navigation: ResultsScreenNavigationProp;
-  route: ResultsScreenRouteProp;
-}
-
-interface NutritionItemProps {
-  label: string;
-  value: string | number;
-  unit?: string;
-  color?: string;
-}
-
-interface MacroCardProps {
-  value: number;
-  label: string;
-  color: string;
-  icon: string;
-}
-
-interface NutrientCardProps {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}
 
 const NutritionItem: React.FC<NutritionItemProps> = ({ label, value, unit = "", color = "#333" }) => (
   <View style={styles.nutritionItem}>
@@ -79,7 +50,7 @@ const NutrientCard: React.FC<NutrientCardProps> = ({ title, icon, children }) =>
   </View>
 );
 
-export default function ResultsScreen({ navigation, route }: Props) {
+export default function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const { t } = useTranslation();
   const {
     imageUri,
@@ -233,7 +204,7 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
       if (searchText) {
         // Text-based analysis
-        result = await GeminiService.analyzeFoodFromText(searchText, weight);
+        result = await GeminiService.analyzeFoodFromText(searchText, weight, "g");
       } else {
         // Image-based analysis
         const base64Image = await convertImageToBase64(imageUri);
@@ -246,6 +217,13 @@ export default function ResultsScreen({ navigation, route }: Props) {
       await saveToHistory(result);
     } catch (error) {
       console.error("Error analyzing food:", error);
+      Alert.alert(
+        t("results.analysisFailed"),
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as any).message
+          : t("results.analysisFailed"),
+        [{ text: "OK" }]
+      );
       setError(t("results.analysisFailed"));
     } finally {
       setIsLoading(false);
@@ -261,21 +239,34 @@ export default function ResultsScreen({ navigation, route }: Props) {
 
       // First, let's check the file size
       const fileInfo = await FileSystem.getInfoAsync(uri);
-      console.log("Image file info:", fileInfo);
+      if (__DEV__) {
+        console.log("Image file info:", fileInfo);
+      }
 
       // If file exists and is too large (>4MB), we might need to resize
       if (fileInfo.exists && "size" in fileInfo && fileInfo.size > 4 * 1024 * 1024) {
-        console.warn("Image file is large:", fileInfo.size, "bytes - this might cause API issues");
+        Alert.alert(
+          "Large Image Warning",
+          `The selected image is large (${fileInfo.size} bytes). This may cause issues with analysis. Consider using a smaller image.`,
+          [{ text: "OK" }]
+        );
       }
 
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      console.log("Base64 string length:", base64.length);
+      if (__DEV__) {
+        console.log("Base64 string length:", base64.length);
+      }
       return base64;
     } catch (error) {
       console.error("Error converting image to base64:", error);
+      Alert.alert(
+        "Image Processing Error",
+        "Failed to process image. Please try a different image or check your device storage.",
+        [{ text: "OK" }]
+      );
       throw new Error("Failed to process image");
     }
   };

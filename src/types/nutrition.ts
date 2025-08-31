@@ -65,16 +65,6 @@ export interface NutritionData {
   confidence?: number;
 }
 
-export interface GeminiResponse {
-  candidates: {
-    content: {
-      parts: {
-        text: string;
-      }[];
-    };
-  }[];
-}
-
 export interface RecipeSearchResult {
   name: string;
   description: string;

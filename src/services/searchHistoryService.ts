@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SearchHistoryItem } from "../types/searchHistory";
+import { Alert } from "react-native";
 
 const SEARCH_HISTORY_KEY = "@NutriScan:SearchHistory";
 
@@ -36,6 +37,11 @@ class SearchHistoryService {
       console.log("Search saved to history:", newItem.foodName);
     } catch (error) {
       console.error("Failed to save search to history:", error);
+      Alert.alert(
+        "Save Error",
+        "Failed to save search to history. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   }
 
@@ -101,6 +107,11 @@ class SearchHistoryService {
       return migratedHistory.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
       console.error("Failed to load search history:", error);
+      Alert.alert(
+        "History Load Error",
+        "Failed to load search history. Please try again later.",
+        [{ text: "OK" }]
+      );
       return [];
     }
   }
@@ -117,6 +128,11 @@ class SearchHistoryService {
       console.log("Search item deleted from history:", id);
     } catch (error) {
       console.error("Failed to delete search item:", error);
+      Alert.alert(
+        "Delete Error",
+        "Failed to delete search item. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   }
 
@@ -126,9 +142,14 @@ class SearchHistoryService {
   async clearAllHistory(): Promise<void> {
     try {
       await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
-      console.log("All search history cleared");
+      Alert.alert("All search history cleared");
     } catch (error) {
       console.error("Failed to clear search history:", error);
+      Alert.alert(
+        "Clear History Error",
+        "Failed to clear search history. Please try again.",
+        [{ text: "OK" }]
+      );
     }
   }
 
@@ -152,6 +173,11 @@ class SearchHistoryService {
       };
     } catch (error) {
       console.error("Failed to get search stats:", error);
+      Alert.alert(
+        "Stats Error",
+        "Failed to get search stats. Please try again.",
+        [{ text: "OK" }]
+      );
       return { totalSearches: 0, thisWeek: 0, thisMonth: 0 };
     }
   }

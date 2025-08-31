@@ -1,19 +1,12 @@
 import React, { useState } from "react";
-import { StyleSheet, ScrollView, Alert } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from "react-native";
 import { Layout, Text, Input, Button, Card, Spinner } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
 import GeminiService from "../services/geminiService";
 import { RecipeSearchResult } from "../types/nutrition";
+import { RecipeSearchScreenProps } from "../types/navigation";
 
-type RecipeSearchScreenNavigationProp = StackNavigationProp<RootStackParamList, "RecipeSearch">;
-
-interface Props {
-  navigation: RecipeSearchScreenNavigationProp;
-}
-
-export default function RecipeSearchScreen({ navigation }: Props) {
+export default function RecipeSearchScreen({ navigation }: RecipeSearchScreenProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState<RecipeSearchResult[]>([]);
@@ -32,6 +25,11 @@ export default function RecipeSearchScreen({ navigation }: Props) {
       setRecipes(results);
     } catch (error) {
       console.error("Error searching recipes:", error);
+      Alert.alert(
+        "Recipe Search Error",
+        "Failed to search recipes. Please try again.",
+        [{ text: "OK" }]
+      );
       Alert.alert(t("recipeSearch.searchFailed"), t("recipeSearch.tryAgain"));
     } finally {
       setIsSearching(false);

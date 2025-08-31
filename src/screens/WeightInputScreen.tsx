@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Image, Alert, ScrollView } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RouteProp } from "@react-navigation/native";
 import { Layout, Text, Input, Button, Card, Spinner, Modal, Toggle, Divider } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
-import VolumeEstimationService, { VolumeEstimate } from "../services/volumeEstimationService";
+import VolumeEstimationService from "../services/volumeEstimationService";
 import GeminiService from "../services/geminiService";
+import { WeightInputScreenProps } from "../types/navigation";
+import { VolumeEstimate } from "../types/services";
 
-type WeightInputScreenNavigationProp = StackNavigationProp<RootStackParamList, "WeightInput">;
-type WeightInputScreenRouteProp = RouteProp<RootStackParamList, "WeightInput">;
-
-interface Props {
-  navigation: WeightInputScreenNavigationProp;
-  route: WeightInputScreenRouteProp;
-}
-
-export default function WeightInputScreen({ navigation, route }: Props) {
+export default function WeightInputScreen({ navigation, route }: WeightInputScreenProps) {
   const { t } = useTranslation();
   const { imageUri } = route.params;
   const [weight, setWeight] = useState("");
@@ -42,6 +33,11 @@ export default function WeightInputScreen({ navigation, route }: Props) {
       setWeight(estimate.weight.toString());
     } catch (error) {
       console.error("Weight estimation failed:", error);
+      Alert.alert(
+        "Weight Estimation Error",
+        "Failed to estimate weight. Please try again.",
+        [{ text: "OK" }]
+      );
       Alert.alert(t("weightInput.estimationFailed"), t("weightInput.enterManually"), [
         { text: t("weightInput.manualInput"), onPress: () => setUseAutoWeight(false) },
         { text: t("results.tryAgain"), onPress: estimateWeight },
@@ -91,9 +87,15 @@ export default function WeightInputScreen({ navigation, route }: Props) {
           warnings: [],
           tips: [],
         },
+        nutritionData: null, // Will be calculated in ResultsScreen
       });
     } catch (error) {
       console.error("Error proceeding to analysis:", error);
+      Alert.alert(
+        "Analysis Error",
+        "Failed to proceed to analysis. Please try again.",
+        [{ text: "OK" }]
+      );
       Alert.alert(t("common.error"), t("textSearch.analysisError"));
     } finally {
       setIsProcessing(false);

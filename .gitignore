@@ -38,3 +38,6 @@ yarn-error.*
 
 # env
 .env
+
+# instructions
+.github/*

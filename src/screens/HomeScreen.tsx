@@ -1,26 +1,24 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, RefreshControl } from "react-native";
-import { Layout, Text, Button, Card, Divider, Spinner } from "@ui-kitten/components";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../../App";
+import { Layout, Text, Card, Spinner } from "@ui-kitten/components";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
+import { LinearGradient } from "expo-linear-gradient";
 import { SearchHistoryItem } from "../types/searchHistory";
+import { HomeScreenProps } from "../types/navigation";
 import searchHistoryService from "../services/searchHistoryService";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import SearchHistoryModal from "../components/SearchHistoryModal";
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
-
-interface Props {
-  navigation: HomeScreenNavigationProp;
-}
-
-const HomeScreen: React.FC<Props> = ({ navigation }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
   const [stats, setStats] = useState({ totalSearches: 0, thisWeek: 0, thisMonth: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [visibleItems, setVisibleItems] = useState(10); // Show 10 items initially
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const loadHistory = async () => {
     try {
@@ -30,8 +28,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       ]);
       setHistory(historyData);
       setStats(statsData);
+      setVisibleItems(5); // Reset to show only 5 items initially
     } catch (error) {
       console.error("Failed to load history:", error);
+      Alert.alert("History Load Error", "Failed to load search history. Please try again later.", [{ text: "OK" }]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -46,6 +46,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
+    setVisibleItems(5); // Reset to show only 5 items initially
     loadHistory();
   };
 
@@ -79,6 +80,27 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     ]);
   };
 
+  const handleFindMore = () => {
+    setSearchModalVisible(true);
+  };
+
+  const handleHistoryItemSelect = (selectedItem: SearchHistoryItem) => {
+    // Navigate to Results screen
+    navigation.navigate("Results", {
+      calories: selectedItem.calories,
+      weight: selectedItem.weight,
+      confidence: selectedItem.confidence || 0,
+      summary: selectedItem.summary,
+      imageUri: selectedItem.imageUri,
+      searchText: selectedItem.searchText,
+      nutritionData: selectedItem.nutritionData,
+    });
+  };
+
+  const handleBackToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   const renderHistoryItem = (item: SearchHistoryItem) => (
     <Card
       key={item.id}
@@ -90,8 +112,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           confidence: item.confidence || 0,
           summary: item.summary,
           imageUri: item.imageUri,
-          searchText: item.searchText, // Pass searchText if available
-          // Include complete nutrition data if available
+          searchText: item.searchText,
           nutritionData: item.nutritionData,
         })
       }
@@ -111,9 +132,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.foodName} numberOfLines={1}>
             {item.foodName}
           </Text>
-          <Text style={styles.calories} category="s1">
-            {item.calories} calories • {item.weight}g
-          </Text>
+          <View style={styles.nutritionRow}>
+            <Text style={styles.calories}>🔥 {item.calories} cal</Text>
+            <Text style={styles.weight}>⚖️ {item.weight}g</Text>
+          </View>
           <Text style={styles.timestamp} appearance="hint" category="c1">
             {searchHistoryService.formatTimestamp(item.timestamp)}
           </Text>
@@ -130,101 +152,233 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     </Card>
   );
 
+  const renderStatCard = (value: number, label: string, icon: string, color: string) => (
+    <LinearGradient
+      colors={[color + "15", color + "08"]}
+      style={styles.statCard}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.statIconContainer}>
+        <Text style={[styles.statIcon, { color }]}>{icon}</Text>
+      </View>
+      <Text style={[styles.statNumber, { color }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </LinearGradient>
+  );
+
   if (loading) {
     return (
       <Layout style={styles.container}>
-        <View style={styles.gradient}>
+        <LinearGradient
+          colors={["#E8F5E8", "#F0F8F0", "#FFFFFF"]}
+          style={styles.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
           <View style={styles.loadingContainer}>
-            <Spinner size="large" />
+            <View style={styles.loadingAnimation}>
+              <Spinner size="large" status="success" />
+            </View>
             <Text style={styles.loadingText}>{t("home.loadingHistory")}</Text>
+            <Text style={styles.loadingSubtitle}>{t("home.loadingHistorySubtitle")}</Text>
           </View>
-        </View>
+        </LinearGradient>
       </Layout>
     );
   }
 
   return (
     <Layout style={styles.container}>
-      <View style={styles.gradient}>
-        <View style={styles.header}>
-          <LanguageSwitcher style={styles.languageSwitcher} />
-          <Text style={styles.title}>{t("home.title")}</Text>
-          <Text style={styles.subtitle}>{t("home.subtitle")}</Text>
-        </View>
-
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.totalSearches}</Text>
-            <Text style={styles.statLabel}>{t("home.totalScans")}</Text>
+      <LinearGradient
+        colors={["#E8F5E8", "#F0F8F0", "#FFFFFF"]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#4CAF50"]} tintColor="#4CAF50" />
+          }
+        >
+          {/* Header Section */}
+          <View style={styles.header}>
+            <LanguageSwitcher style={styles.languageSwitcher} />
+            <View style={styles.headerContent}>
+              <Text style={styles.welcomeText}>{t("home.welcomeTo")}</Text>
+              <Text style={styles.title}>{t("home.title")}</Text>
+              <Text style={styles.subtitle}>{t("home.subtitle")}</Text>
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.thisWeek}</Text>
-            <Text style={styles.statLabel}>{t("home.thisWeek")}</Text>
+
+          {/* Quick Stats Section */}
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>{t("home.yourActivity")}</Text>
+            <View style={styles.statsContainer}>
+              {renderStatCard(stats.totalSearches, t("home.totalScans"), "📊", "#4CAF50")}
+              {renderStatCard(stats.thisWeek, t("home.thisWeek"), "📅", "#2196F3")}
+              {renderStatCard(stats.thisMonth, t("home.thisMonth"), "📈", "#9C27B0")}
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.thisMonth}</Text>
-            <Text style={styles.statLabel}>{t("home.thisMonth")}</Text>
-          </View>
-        </View>
 
-        <View style={styles.actionButtons}>
-          <Button
-            style={[styles.actionButton, styles.primaryButton]}
-            onPress={() => navigation.navigate("Camera")}
-            accessoryLeft={() => <Text style={styles.buttonIcon}>📷</Text>}
-          >
-            {t("home.scanNewFood")}
-          </Button>
-
-          <Button
-            style={[styles.actionButton, styles.secondaryButton]}
-            onPress={() => navigation.navigate("TextSearch")}
-            accessoryLeft={() => <Text style={styles.secondaryButtonIcon}>🔍</Text>}
-            appearance="outline"
-            status="success"
-          >
-            {t("home.textSearch")}
-          </Button>
-
-          <Button
-            style={[styles.actionButton, styles.recipeButton]}
-            onPress={() => navigation.navigate("RecipeSearch")}
-            accessoryLeft={() => <Text style={styles.recipeButtonIcon}>🍽️</Text>}
-            appearance="outline"
-            status="primary"
-          >
-            {t("home.recipeSearch")}
-          </Button>
-        </View>
-
-        <View style={styles.historySection}>
-          <View style={styles.historySectionHeader}>
-            <Text style={styles.historyTitle}>{t("home.recentScans")}</Text>
-            {history.length > 0 && (
-              <TouchableOpacity onPress={handleClearAll}>
-                <Text style={styles.clearAllText}>{t("home.clearAll")}</Text>
+          {/* Quick Actions Section */}
+          <View style={styles.actionsSection}>
+            <Text style={styles.sectionTitle}>{t("home.quickActions")}</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.primaryAction]}
+                onPress={() => navigation.navigate("Camera")}
+                activeOpacity={0.8}
+              >
+                <View style={styles.primaryActionContent}>
+                  <View style={styles.primaryActionIconContainer}>
+                    <Text style={styles.primaryActionIcon}>📷</Text>
+                  </View>
+                  <View style={styles.actionTextContainer}>
+                    <Text style={styles.primaryActionTitle}>{t("home.scanNewFood")}</Text>
+                    <Text style={styles.primaryActionSubtitle}>{t("home.scanNewFoodSubtitle")}</Text>
+                  </View>
+                  <Text style={styles.actionArrow}>→</Text>
+                </View>
               </TouchableOpacity>
+
+              <View style={styles.secondaryActions}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.secondaryAction, styles.textSearchAction]}
+                  onPress={() => navigation.navigate("TextSearch")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.secondaryActionContent}>
+                    <View style={[styles.secondaryActionIconContainer, styles.textSearchIcon]}>
+                      <Text style={styles.secondaryActionIcon}>🔍</Text>
+                    </View>
+                    <View style={styles.actionTextContainer}>
+                      <Text style={styles.secondaryActionTitle}>{t("home.textSearch")}</Text>
+                      <Text style={styles.secondaryActionSubtitle}>{t("home.textSearchSubtitle")}</Text>
+                    </View>
+                    <Text style={styles.secondaryActionArrow}>›</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.secondaryAction, styles.recipeAction]}
+                  onPress={() => navigation.navigate("RecipeSearch")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.secondaryActionContent}>
+                    <View style={[styles.secondaryActionIconContainer, styles.recipeIcon]}>
+                      <Text style={styles.secondaryActionIcon}>🍽️</Text>
+                    </View>
+                    <View style={styles.actionTextContainer}>
+                      <Text style={styles.secondaryActionTitle}>{t("home.recipeSearch")}</Text>
+                      <Text style={styles.secondaryActionSubtitle}>{t("home.recipeSearchSubtitle")}</Text>
+                    </View>
+                    <Text style={styles.secondaryActionArrow}>›</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.secondaryAction, styles.logAction]}
+                  onPress={() => navigation.navigate("FoodLog")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.secondaryActionContent}>
+                    <View style={[styles.secondaryActionIconContainer, styles.logIcon]}>
+                      <Text style={styles.secondaryActionIcon}>📝</Text>
+                    </View>
+                    <View style={styles.actionTextContainer}>
+                      <Text style={styles.secondaryActionTitle}>{t("home.foodLog")}</Text>
+                      <Text style={styles.secondaryActionSubtitle}>{t("home.foodLogSubtitle")}</Text>
+                    </View>
+                    <Text style={styles.secondaryActionArrow}>›</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Recent Scans Section */}
+          <View style={styles.historySection}>
+            <View style={styles.historySectionHeader}>
+              <Text style={styles.sectionTitle}>{t("home.recentScans")}</Text>
+              {history.length > 0 && (
+                <TouchableOpacity onPress={handleClearAll}>
+                  <Text style={styles.clearAllText}>{t("home.clearAll")}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {history.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconContainer}>
+                  <Text style={styles.emptyIcon}>🔍</Text>
+                </View>
+                <Text style={styles.emptyTitle}>{t("home.noScansYet")}</Text>
+                <Text style={styles.emptySubtitle}>{t("home.noScansSubtitle")}</Text>
+                <TouchableOpacity
+                  style={styles.getStartedButton}
+                  onPress={() => navigation.navigate("Camera")}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.getStartedText}>{t("home.getStarted")}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.historyList}>
+                {history.slice(0, visibleItems).map(renderHistoryItem)}
+
+                {/* Find More Button */}
+                {history.length > visibleItems && (
+                  <View style={styles.loadMoreContainer}>
+                    <TouchableOpacity style={styles.loadMoreButton} onPress={handleFindMore} activeOpacity={0.8}>
+                      <Text style={styles.loadMoreText}>{t("home.findMore")}</Text>
+                      <Text style={styles.loadMoreSubtext}>
+                        {t("home.showingItems", { shown: visibleItems, total: history.length })}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Back to Top Button */}
+                {visibleItems > 10 && (
+                  <View style={styles.backToTopContainer}>
+                    <TouchableOpacity style={styles.backToTopButton} onPress={handleBackToTop} activeOpacity={0.8}>
+                      <Text style={styles.backToTopText}>↑ {t("home.backToTop")}</Text>
+                    </TouchableOpacity>
+
+                    {/* Quick Actions Shortcut */}
+                    <TouchableOpacity
+                      style={styles.quickActionsShortcut}
+                      onPress={() => {
+                        handleBackToTop();
+                        // Small delay to ensure scroll completes
+                        setTimeout(() => {
+                          scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+                        }, 300);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.quickActionsShortcutText}>⚡ {t("home.quickActions")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             )}
           </View>
 
-          {history.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🔍</Text>
-              <Text style={styles.emptyTitle}>{t("home.noScansYet")}</Text>
-              <Text style={styles.emptySubtitle}>{t("home.noScansSubtitle")}</Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.historyList}
-              showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-              {history.map(renderHistoryItem)}
-              <View style={styles.bottomPadding} />
-            </ScrollView>
-          )}
-        </View>
-      </View>
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+
+        <SearchHistoryModal
+          visible={searchModalVisible}
+          onClose={() => setSearchModalVisible(false)}
+          onItemSelect={handleHistoryItemSelect}
+          title={t("home.findMore")}
+        />
+      </LinearGradient>
     </Layout>
   );
 };
@@ -235,23 +389,38 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    backgroundColor: "#F0F8F0",
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+  loadingAnimation: {
+    marginBottom: 20,
+  },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
+    color: "#4CAF50",
+    fontWeight: "500",
+  },
+  loadingSubtitle: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    alignItems: "center",
+    paddingBottom: 30,
     position: "relative",
+  },
+  headerContent: {
+    alignItems: "center",
   },
   languageSwitcher: {
     position: "absolute",
@@ -259,83 +428,188 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 1,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#2E7D32",
+  welcomeText: {
+    fontSize: 16,
+    color: "#666",
     marginBottom: 4,
   },
+  title: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#2E7D32",
+    marginBottom: 8,
+  },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#4CAF50",
-    opacity: 0.8,
+    opacity: 0.9,
+  },
+  statsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#2E7D32",
+    marginBottom: 16,
   },
   statsContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    marginHorizontal: 20,
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
     borderRadius: 16,
-    elevation: 2,
+    padding: 16,
+    alignItems: "center",
+    elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  statItem: {
-    alignItems: "center",
+  statIconContainer: {
+    marginBottom: 8,
+  },
+  statIcon: {
+    fontSize: 24,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#2E7D32",
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: "#666",
-    marginTop: 4,
+    textAlign: "center",
+  },
+  actionsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   actionButtons: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 12,
+    gap: 20,
   },
   actionButton: {
-    borderRadius: 12,
-    paddingVertical: 4,
+    borderRadius: 16,
+    overflow: "hidden",
   },
-  primaryButton: {
+  primaryAction: {
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
   },
-  secondaryButton: {
-    backgroundColor: "transparent",
-    borderColor: "#4CAF50",
+  primaryActionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
   },
-  buttonIcon: {
-    fontSize: 18,
+  primaryActionIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  primaryActionIcon: {
+    fontSize: 24,
     color: "#FFFFFF",
   },
-  secondaryButtonIcon: {
+  actionTextContainer: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  primaryActionSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+  },
+  actionArrow: {
+    fontSize: 20,
+    color: "#FFFFFF",
+    fontWeight: "bold",
+  },
+  secondaryActions: {
+    gap: 16,
+  },
+  secondaryAction: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  secondaryActionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+  },
+  secondaryActionIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  textSearchAction: {
+    backgroundColor: "#FFF8F0",
+    borderColor: "#FFE0B2",
+  },
+  textSearchIcon: {
+    backgroundColor: "#FFF3E0",
+  },
+  recipeAction: {
+    backgroundColor: "#F3E5F5",
+    borderColor: "#CE93D8",
+  },
+  recipeIcon: {
+    backgroundColor: "#F8F5FF",
+  },
+  logAction: {
+    backgroundColor: "#E8F5E8",
+    borderColor: "#C8E6C9",
+  },
+  logIcon: {
+    backgroundColor: "#F0FFF0",
+  },
+  secondaryActionIcon: {
+    fontSize: 24,
+  },
+  secondaryActionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2E7D32",
+    marginBottom: 2,
+  },
+  secondaryActionSubtitle: {
+    fontSize: 13,
+    color: "#666",
+  },
+  secondaryActionArrow: {
     fontSize: 18,
     color: "#4CAF50",
-  },
-  recipeButton: {
-    borderColor: "#2196F3",
-  },
-  recipeButtonIcon: {
-    fontSize: 18,
-    color: "#2196F3",
+    fontWeight: "bold",
   },
   historySection: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    marginHorizontal: 20,
+    paddingHorizontal: 20,
     marginBottom: 20,
-    borderRadius: 16,
-    padding: 16,
   },
   historySectionHeader: {
     flexDirection: "row",
@@ -343,40 +617,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2E7D32",
-  },
   clearAllText: {
     color: "#FF6B6B",
     fontSize: 14,
     fontWeight: "500",
   },
   historyList: {
-    flex: 1,
+    paddingHorizontal: 0,
+    paddingBottom: 10,
   },
   historyCard: {
-    marginBottom: 12,
     borderRadius: 12,
-    elevation: 1,
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    marginBottom: 8,
   },
   cardContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 4,
+    padding: 10,
   },
   imageContainer: {
-    marginRight: 12,
+    marginRight: 16,
   },
   foodImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 12,
   },
   placeholderImage: {
     backgroundColor: "#F5F5F5",
@@ -384,7 +654,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   placeholderIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   infoContainer: {
     flex: 1,
@@ -393,48 +663,150 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#2E2E2E",
-    marginBottom: 2,
+    marginBottom: 6,
+  },
+  nutritionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+    gap: 12,
   },
   calories: {
     fontSize: 14,
     color: "#4CAF50",
     fontWeight: "500",
-    marginBottom: 2,
+  },
+  weight: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
   },
   timestamp: {
     fontSize: 12,
+    color: "#8F9BB3",
   },
   deleteButton: {
     padding: 8,
   },
   deleteIcon: {
     fontSize: 18,
+    color: "#FF6B6B",
   },
   emptyState: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconContainer: {
+    marginBottom: 20,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 64,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: "#2E2E2E",
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: "center",
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#8F9BB3",
     textAlign: "center",
-    paddingHorizontal: 20,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  getStartedButton: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  getStartedText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   bottomPadding: {
-    height: 20,
+    height: 30,
+  },
+  loadMoreContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  loadMoreButton: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 40,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    width: "100%",
+  },
+  loadMoreText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  loadMoreSubtext: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 2,
+  },
+  backToTopContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+    flexDirection: "row",
+    paddingHorizontal: 20,
+  },
+  backToTopButton: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    flex: 1,
+    marginRight: 8,
+  },
+  backToTopText: {
+    color: "#4CAF50",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  quickActionsShortcut: {
+    backgroundColor: "#FFF3E0",
+    borderWidth: 1,
+    borderColor: "#FFB74D",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    flex: 1,
+    marginLeft: 8,
+  },
+  quickActionsShortcutText: {
+    color: "#E65100",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 

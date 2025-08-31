@@ -1,14 +1,7 @@
 import { Dimensions } from "react-native";
-import GeminiService, { WeightEstimate } from "./geminiService";
-
-export interface VolumeEstimate {
-  volume: number; // in cm³ (estimated)
-  weight: number; // in grams
-  confidence: number; // 0-1
-  detectedFood?: string;
-  estimationMethod: "gemini" | "manual";
-  geminiAnalysis?: string;
-}
+import { Alert } from "react-native";
+import GeminiService from "./geminiService";
+import { WeightEstimate, VolumeEstimate } from "../types/services";
 
 export class VolumeEstimationService {
   private static instance: VolumeEstimationService;
@@ -38,6 +31,11 @@ export class VolumeEstimationService {
       };
     } catch (error) {
       console.error("Gemini weight estimation failed:", error);
+      Alert.alert(
+        "Weight Estimation Error",
+        "Failed to estimate weight from image. Please try again.",
+        [{ text: "OK" }]
+      );
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Weight estimation failed: ${errorMessage}`);
     }

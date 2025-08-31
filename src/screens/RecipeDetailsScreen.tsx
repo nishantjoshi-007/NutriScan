@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, ScrollView, Alert, View } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RouteProp } from "@react-navigation/native";
 import { Layout, Text, Button, Card, Spinner } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
 import GeminiService from "../services/geminiService";
 import { RecipeDetails } from "../types/nutrition";
+import { RecipeDetailsScreenProps } from "../types/navigation";
 
-type RecipeDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList, "RecipeDetails">;
-type RecipeDetailsScreenRouteProp = RouteProp<RootStackParamList, "RecipeDetails">;
-
-interface Props {
-  navigation: RecipeDetailsScreenNavigationProp;
-  route: RecipeDetailsScreenRouteProp;
-}
-
-export default function RecipeDetailsScreen({ navigation, route }: Props) {
+export default function RecipeDetailsScreen({ navigation, route }: RecipeDetailsScreenProps) {
   const { t } = useTranslation();
   const { recipeName, servings } = route.params;
   const [recipeDetails, setRecipeDetails] = useState<RecipeDetails | null>(null);
@@ -35,6 +25,11 @@ export default function RecipeDetailsScreen({ navigation, route }: Props) {
       setRecipeDetails(details);
     } catch (error) {
       console.error("Error fetching recipe details:", error);
+      Alert.alert(
+        "Recipe Error",
+        "Failed to fetch recipe details. Please try again.",
+        [{ text: "OK" }]
+      );
       setError(t("recipeDetails.loadingFailed"));
     } finally {
       setIsLoading(false);

@@ -1,17 +1,12 @@
 import React, { useState } from "react";
-import { StyleSheet, ScrollView, Alert } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { View, StyleSheet, Alert, ScrollView, SafeAreaView } from "react-native";
 import { Layout, Text, Input, Button, Card, Spinner } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-import { RootStackParamList } from "../../App";
+import GeminiService from "../services/geminiService";
+import searchHistoryService from "../services/searchHistoryService";
+import { TextSearchScreenProps } from "../types/navigation";
 
-type TextSearchScreenNavigationProp = StackNavigationProp<RootStackParamList, "TextSearch">;
-
-interface Props {
-  navigation: TextSearchScreenNavigationProp;
-}
-
-export default function TextSearchScreen({ navigation }: Props) {
+export default function TextSearchScreen({ navigation }: TextSearchScreenProps) {
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState("");
   const [weight, setWeight] = useState("");
@@ -62,9 +57,15 @@ export default function TextSearchScreen({ navigation }: Props) {
           warnings: [],
           tips: [],
         },
+        nutritionData: null, // Will be calculated in ResultsScreen
       });
     } catch (error) {
       console.error("Error proceeding to analysis:", error);
+      Alert.alert(
+        "Analysis Error",
+        "Failed to proceed to analysis. Please try again.",
+        [{ text: "OK" }]
+      );
       Alert.alert(t("textSearch.error"), t("textSearch.analysisError"));
     } finally {
       setIsProcessing(false);

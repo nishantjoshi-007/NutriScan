@@ -19,79 +19,10 @@ import ResultsScreen from "./src/screens/ResultsScreen";
 import TextSearchScreen from "./src/screens/TextSearchScreen";
 import RecipeSearchScreen from "./src/screens/RecipeSearchScreen";
 import RecipeDetailsScreen from "./src/screens/RecipeDetailsScreen";
+import FoodLogScreen from "./src/screens/FoodLogScreen";
 
-// Types for navigation
-export type RootStackParamList = {
-  Home: undefined;
-  Camera: undefined;
-  WeightInput: { imageUri: string };
-  TextSearch: undefined;
-  RecipeSearch: undefined;
-  RecipeDetails: { recipeName: string; servings: number };
-  Results: {
-    imageUri: string;
-    weight: number;
-    calories: number;
-    confidence: number;
-    searchText?: string; // Optional text search query
-    summary: {
-      macros: {
-        protein: number;
-        carbs: number;
-        fat: number;
-        fiber: number;
-        sugar: number;
-      };
-      vitamins: Array<{ name: string; amount: string; dailyValue: string }>;
-      minerals: Array<{ name: string; amount: string; dailyValue: string }>;
-      warnings: string[];
-      tips: string[];
-    };
-    // Optional complete nutrition data for history items
-    nutritionData?: {
-      macros: {
-        protein: number;
-        carbs: number;
-        fat: number;
-        fiber: number;
-        sugar: number;
-      };
-      vitamins: {
-        vitaminA: number;
-        vitaminC: number;
-        vitaminD: number;
-        vitaminE: number;
-        vitaminK: number;
-        vitaminB1: number;
-        vitaminB2: number;
-        vitaminB3: number;
-        vitaminB6: number;
-        vitaminB12: number;
-        folate: number;
-      };
-      minerals: {
-        calcium: number;
-        iron: number;
-        magnesium: number;
-        phosphorus: number;
-        potassium: number;
-        sodium: number;
-        zinc: number;
-        selenium: number;
-      };
-      renalDiet: {
-        suitableForKidneyDisease: boolean;
-        potassiumLevel: "low" | "moderate" | "high";
-        phosphorusLevel: "low" | "moderate" | "high";
-        sodiumLevel: "low" | "moderate" | "high";
-        proteinLevel: "low" | "moderate" | "high";
-        recommendation: string;
-        warnings: string[];
-        modifications: string;
-      };
-    };
-  };
-};
+// Import navigation types
+import { RootStackParamList } from "./src/types/navigation";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -138,6 +69,11 @@ export default function App() {
               name="RecipeDetails"
               component={RecipeDetailsScreen}
               options={{ title: "Recipe Details", headerBackTitle: "" }}
+            />
+            <Stack.Screen
+              name="FoodLog"
+              component={FoodLogScreen}
+              options={{ title: "Food Log", headerBackTitle: "" }}
             />
             <Stack.Screen
               name="Results"

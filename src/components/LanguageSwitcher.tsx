@@ -2,10 +2,7 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Text } from "@ui-kitten/components";
 import { useTranslation } from "react-i18next";
-
-interface LanguageSwitcherProps {
-  style?: any;
-}
+import { LanguageSwitcherProps } from "../types/components";
 
 const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ style }) => {
   const { i18n, t } = useTranslation();
